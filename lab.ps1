@@ -1,4 +1,4 @@
-<#
+﻿<#
   Windows runner — the equivalent of `make <target>` for students without make.
 
   Works in Windows PowerShell 5.1 (powershell.exe) and PowerShell 7+ (pwsh).
@@ -21,6 +21,12 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
+
+# The lab's scripts print box-drawing characters. Python only picks UTF-8 for a real
+# console; the moment output is piped or redirected (`.\lab.ps1 bench > log.txt`, or a
+# terminal that hands Python a pipe) it falls back to the ANSI codepage and every
+# banner raises UnicodeEncodeError. Force UTF-8 so the target works either way.
+$env:PYTHONUTF8 = '1'
 
 $VenvPy = Join-Path $PSScriptRoot '.venv\Scripts\python.exe'
 $Port   = if ($env:LAB_SERVER_PORT) { $env:LAB_SERVER_PORT } else { '8080' }
