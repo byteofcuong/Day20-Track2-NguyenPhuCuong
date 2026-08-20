@@ -36,51 +36,34 @@ The eval is 5 arithmetic + 5 JSON-extraction prompts, graded automatically at
 the answers change when the KV cache loses precision.
 
 ## Your finding
+Không mất accuracy, nhưng cũng gần như không tiết kiệm được gì, và phải trả bằng tốc độ.
+Với máy này thì q8_0 là một trade tệ.
 
-_Did the memory saving cost you accuracy? Trading memory for quality is not a win --
-say which side of that trade this machine landed on, and at what context length the
-saving starts to matter._
+Mức tiết kiệm nhỏ đến mức bất ngờ: 29 MiB ở ctx 2048, 49 MiB ở 8192, 60 MiB ở 16384, tức
+khoảng 2% tổng VRAM đang dùng. Đáng lẽ q8_0 phải cắt đôi KV cache, nên con số bé thế này
+nói lên rằng KV cache không phải phần chiếm chỗ: gần như toàn bộ 1.7 GB server thêm vào là
+weight. Có hai lý do cộng lại, Gemma 4 E2B dùng chung KV ở 20 trong 35 layer nên chỉ 15
+layer có KV riêng, và ctx 2048-16384 chia cho 4 slot vẫn là ngân sách rất nhỏ so với 2.97 GB
+weight. Xu hướng thì vẫn đúng chiều, tiết kiệm tăng dần theo ctx, nên phải lên tới hàng trăm
+nghìn token hoặc hàng chục slot thì con số mới đủ lớn để quan tâm.
 
-**Finding của tôi (Nguyễn Phú Cường):**
+Về latency thì chậm hơn 7%, TPOT từ 13.83 lên 14.89 ms. Không phải nhiễu, và có lý do rõ:
+mỗi decode step phải dequantize KV trước khi tính attention, mà ở ctx nhỏ thế này thì KV
+chưa đủ lớn để việc đọc ít byte hơn bù lại chi phí giải nén. TTFT gần như không đổi, hợp lý
+vì prefill ghi KV chứ không đọc lại nhiều.
 
-**Không mất accuracy — nhưng cũng gần như không tiết kiệm được gì, và phải trả bằng tốc
-độ. Trên máy này `q8_0` KV cache là một trade tồi.**
+Chất lượng thì cả hai đều 9/10, và quan trọng hơn con số đó là cả hai fail đúng cùng một
+item với output trùng khít từng ký tự (đều trả `{"product": "mouse", "price": "25 dollars"}`
+trong khi grader của tôi chờ price là số). Đó là grader quá chặt chứ model trích xuất đúng.
+Việc hai cấu hình cho ra output giống hệt nhau ở cả 10 prompt là bằng chứng mạnh hơn con số
+9/10: ở ctx này q8_0 không làm đổi hành vi model.
 
-**1. Tiết kiệm bộ nhớ: nhỏ đến mức gây thất vọng.** 29 MiB ở ctx 2048, 49 MiB ở ctx 8192,
-60 MiB ở ctx 16384 — tức khoảng **2% tổng VRAM đang dùng**. Đáng lẽ q8_0 phải cắt đôi KV
-cache (16 bit → 8 bit), nên nếu KV thực sự lớn thì mức tiết kiệm phải lớn hơn nhiều. Con
-số nhỏ này nói lên rằng **KV cache không phải phần chiếm chỗ**: gần như toàn bộ ~1.7 GB
-mà server thêm vào là weight. Có hai lý do cộng dồn: Gemma 4 E2B dùng chung KV ở 20 trong
-35 layer (nên chỉ 15 layer thực sự có KV riêng), và tổng ctx 2048–16384 chia cho 4 slot
-vẫn là ngân sách rất nhỏ so với 2.97 GB weight.
+Nên tôi sẽ không bật knob này. Nó đổi 2% VRAM lấy 7% throughput, mà VRAM không phải thứ tôi
+đang thiếu, nút thắt thật của tôi là số slot. Tôi chỉ đổi ý khi KV cache thành phần chi phối
+bộ nhớ, kiểu 16 slot với ctx 32k, và lúc đó phải đo lại chứ không suy ra từ bài này.
 
-Xu hướng vẫn đúng chiều — mức tiết kiệm tăng theo ctx (29 → 49 → 60 MiB), đúng như dự
-đoán vì KV cache tỉ lệ với context. Ngoại suy thô: phải lên tới ctx hàng trăm nghìn token,
-hoặc `--parallel` hàng chục slot, thì con số này mới đủ lớn để đáng quan tâm.
-
-**2. Latency: chậm hơn 7%.** TPOT P50 đi từ **13.83 ms lên 14.89 ms** (72.3 → 67.2 tok/s).
-Đây không phải nhiễu, và nó có cơ chế rõ ràng: mỗi decode step phải **dequantize KV cache
-trở lại** trước khi tính attention. Ở ctx nhỏ như thế này, KV chưa đủ lớn để việc đọc ít
-byte hơn bù lại được chi phí dequantize — nên ta trả phí giải nén mà không nhận được lợi
-ích băng thông. TTFT gần như không đổi (204 → 205 ms P50), hợp lý vì prefill ghi KV chứ
-không đọc lại nhiều.
-
-**3. Chất lượng: không suy giảm.** Cả hai đều đạt **9/10**, và quan trọng hơn con số:
-**cả hai fail đúng cùng một item với output giống hệt nhau từng ký tự** — cùng trả về
-`{"product": "mouse", "price": "25 dollars"}` trong khi grader của tôi chờ `price: 25`.
-Đó là grader quá chặt (model trích xuất đúng, chỉ giữ đơn vị), không phải model sai. Việc
-hai cấu hình cho ra output trùng khít ở cả 10 prompt là bằng chứng mạnh hơn con số 9/10:
-ở ctx này, `q8_0` KV **không làm đổi hành vi model**.
-
-**Kết luận triển khai:** tôi sẽ **không** bật `--cache-type-k/v q8_0` trong cấu hình của
-mình. Nó đổi 2% VRAM lấy 7% throughput, mà VRAM lại không phải thứ tôi đang thiếu — điểm
-nghẽn thật của tôi là **số slot** (`bonus-gpu-offload-sweep.md` và
-`02-server-results.md`: `requests_deferred` đỉnh 45). Ngưỡng để tôi đổi ý là khi KV cache
-trở thành phần chi phối bộ nhớ: `--parallel` lớn kèm ctx dài, ví dụ 16 slot × 32k context.
-Lúc đó phép tính lật ngược — nhưng phải đo lại chứ không suy ra từ bài này.
-
-Điều này cũng cho thấy vì sao không nên bê thẳng "FP8 KV cache là bộ nhớ miễn phí" từ
-deck sang máy mình. Trên GPU datacenter phục vụ context dài với batch lớn, KV cache thực
-sự là phần chiếm chỗ và FP8 là chiến thắng rõ ràng. Trên một laptop chạy 4 slot × 512
-token, cùng knob đó là chi phí thuần. Cơ chế không đổi; cái đổi là KV cache có phải phần
-lớn của bộ nhớ hay không.
+Chỗ này cũng cho thấy vì sao không nên bê thẳng câu "FP8 KV cache là bộ nhớ miễn phí" từ
+deck sang máy mình. Trên GPU datacenter phục vụ context dài batch lớn thì KV cache đúng là
+chiếm chỗ thật và FP8 thắng rõ. Trên laptop 4 slot với 512 token mỗi slot thì cùng knob đó
+là chi phí thuần. Cơ chế không đổi, cái đổi là KV cache có phải phần lớn của bộ nhớ hay
+không.

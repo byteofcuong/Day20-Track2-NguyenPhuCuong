@@ -15,34 +15,14 @@ Completed requests: `UD-Q4_K_XL` 10/10 · `UD-Q2_K_XL` 10/10
 - `UD-Q2_K_XL` decodes **1.17x faster** than `UD-Q4_K_XL` here, for 0.73 GB less on disk.
 
 ## Your observation
+Q2 decode nhanh hơn Q4 1.17 lần (99.0 so với 84.9 tok/s) và nhẹ hơn 0.73 GB. TTFT thì gần
+như y hệt, 188 so với 201 ms, vì prefill nghẽn ở compute chứ không ở số byte weight đọc lên.
 
-_Is the smaller quantization worth it on your machine? Compare the numbers above,
-then judge the answer quality yourself: run `make serve` on each and ask the same
-question twice. Size and speed are measurable; usefulness is your call._
+Tôi bật lần lượt hai server và hỏi cùng 5 câu ở temperature 0. Câu dễ chấm thì hoà: cả hai
+đều ra 17*24 = 408 và trích xuất JSON đúng. Câu cần kiến thức thì Q2 sai kiểu khó thấy: nó
+bảo PagedAttention cấp phát bộ nhớ contiguous (ngược hẳn, cơ chế này sinh ra để KV cache
+không cần liền khối), và mở đầu một câu trả lời bằng "GGUF (GPT-GPU)".
 
-**Nhận xét của tôi (Nguyễn Phú Cường):**
-
-Trên máy này (RTX 4050, cả hai quant đều offload trọn vẹn lên GPU với `ngl=99`),
-`UD-Q2_K_XL` decode nhanh hơn `UD-Q4_K_XL` **1.17×** (99.0 so với 84.9 tok/s, tức TPOT
-10.1 so với 11.8 ms) và nhỏ hơn **0.73 GB**. TTFT gần như không đổi (188 so với 201 ms ở
-P50, và ở P95 thì 370 so với 384 ms — chênh lệch nằm trong nhiễu) — đúng như kỳ vọng:
-prefill bị giới hạn bởi compute chứ không phải số byte của weight, nên bớt bit gần như
-không giúp gì cho prefill. Phần thắng nằm trọn ở decode, nơi mỗi token phải đọc lại weight
-của các layer active, và đó chính là dấu hiệu decode ở đây bounded bởi memory bandwidth.
-
-**Có đáng không? Với tôi là KHÔNG.** Tôi đã bật lần lượt hai server và hỏi cùng 5 câu ở
-`temperature=0`. Hai câu dễ chấm thì hoà: cả hai đều trả lời `17 * 24 = 408` và đều trích
-xuất đúng `{"name": "Mai", "age": 27}`. Nhưng ở câu cần kiến thức, Q2 sai theo kiểu khó
-phát hiện:
-
-- Hỏi PagedAttention giải quyết vấn đề gì: Q4 trả lời "virtual memory system for attention
-  keys and values"; Q2 trả lời cơ chế này cho phép cấp phát bộ nhớ **"contiguous"** — ngược
-  hẳn với ý tưởng cốt lõi (PagedAttention tồn tại chính là để KV cache **không** cần liền
-  khối).
-- Hỏi về các format GGUF: Q2 mở đầu bằng "GGUF (GPT-GPU)" — một cụm bịa hoàn toàn.
-
-Đổi lại 1.17× tốc độ và 0.73 GB, tôi nhận về những câu trả lời trôi chảy nhưng lật ngược
-nội dung kỹ thuật. Với 6 GB VRAM thì `UD-Q4_K_XL` (2.97 GB) vẫn nằm gọn, nên tôi không có
-lý do phải tiết kiệm 0.73 GB đó. Tôi sẽ chỉ chọn Q2 nếu VRAM ép buộc: ví dụ cần chạy đồng
-thời một model thứ hai, hoặc phải nâng `--ctx-size` lên mức mà KV cache cạnh tranh chỗ với
-weight.
+Nên với tôi là không đáng. Q4 2.97 GB vẫn vừa 6 GB VRAM, tôi chưa cần tiết kiệm 0.73 GB để
+đổi lấy câu trả lời lật ngược nội dung. Chỉ khi VRAM ép thật, kiểu phải chạy thêm model thứ
+hai hoặc nâng ctx lên nhiều, tôi mới tính lại.

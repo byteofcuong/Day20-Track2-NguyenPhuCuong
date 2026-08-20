@@ -28,56 +28,28 @@ utilisation. For true slot utilisation use the server's own gauges (`make metric
 Throughput moved 0.93x while P95 moved 4.84x. That gap is the goodput argument: past saturation you buy throughput by spending latency, and if your SLO is a P95 target then the requests you added are no longer being served within it. (This lab does not fix an SLO number for you -- pick one in your write-up and state how much goodput you keep at it.)
 
 ## Your reading
+Server bão hoà từ dưới 10 user. Con số làm tôi tin là RPS: 3.69 xuống 3.43 khi tải tăng 5
+lần. Không phải đứng yên mà đi lùi 7%.
 
-_Where does your server saturate, and what is the evidence? Name the number that
-convinced you. Then say what you would change first to raise goodput at your SLO --
-and why that knob and not another._
+Phần latency tăng thêm là queue time chứ không phải compute, và tôi dựa vào ba thứ. Thứ
+nhất, P95 tăng 4.84 lần trong khi RPS giảm; nếu mỗi request tốn nhiều compute hơn thì phải
+thấy ở thời gian decode, mà TPOT thì không đổi. Thứ hai, server tự khai requests_deferred
+đỉnh 45, tức 45 request đang chờ slot. Thứ ba, busy_slots 3.97/4 cho thấy engine không hề
+rảnh, nó chạy hết công suất, chỉ là không còn chỗ.
 
-**Bài đọc của tôi (Nguyễn Phú Cường):**
+Effective concurrency 41.5 so với 4 slot ra tỉ lệ 10.36, tức mỗi slot có chừng 10 request
+xếp hàng. Theo Little's Law thì một request đợi khoảng 9 lượt trước khi tới lượt mình, nhân
+với ~1.2 giây phục vụ là ra đúng vùng 12-15 giây đo được. Phần RPS mất đi chính là chi phí
+xếp lịch cho đống hàng đợi đó.
 
-**Server bão hoà ở đâu đó dưới 10 user, và con số thuyết phục tôi là RPS: 3.69 → 3.43.**
-Tăng offered load 5× (10 → 50 user) không những không mua thêm được throughput mà còn
-**mất 7%** (0.93×). Nếu server còn headroom ở 10 user, RPS phải tăng đáng kể. Nó đi lùi,
-nên trần đã bị chạm từ trước mốc 10 user, và phần tải thêm chỉ tạo ra chi phí quản lý hàng
-đợi chứ không tạo ra công việc hữu ích.
+Nếu đặt SLO P95 dưới 5 giây thì ở 10 user tôi giữ được gần như toàn bộ goodput ở 3.69 RPS,
+còn ở 50 user P95 là 15 giây nên goodput về 0, dù throughput danh nghĩa vẫn 3.43 RPS.
 
-**Phần latency tăng thêm là queue time, không phải compute time.** Ba bằng chứng độc lập:
-
-1. **P95 tăng 4.84× (3.1 s → 15 s) trong khi RPS đi lùi.** Nếu server phải làm việc nặng
-   hơn cho mỗi request thì đó phải phản ánh vào thời gian decode. Nó không phản ánh: cùng
-   lượng công việc đó chỉ bị trải ra trên thời gian chờ dài hơn.
-2. **`requests_deferred` đỉnh 45** (`02-server-batching-u50.md`). Đây là bằng chứng trực
-   tiếp và không thể chối cãi: server tự khai báo có 45 request đang nằm chờ slot.
-3. **TPOT không đổi.** Ở bench 1 request/lần, TPOT P50 là 11.8 ms. Dưới 50 user,
-   `busy_slots` = 3.97/4 và server vẫn sinh 24170 token trong 60 s. Thời gian *decode* mỗi
-   token không tệ đi; chỉ có thời gian *đợi được decode* tăng lên.
-
-Đối chiếu: effective concurrency **41.5** so với `--parallel 4` → occupancy/slot ratio
-**10.36**. Trung bình mỗi slot có ~10 request xếp hàng. Với Little's Law, một request điển
-hình đợi ~9 lượt trước khi tới lượt mình — nhân với ~1.2 s thời gian phục vụ thì ra đúng
-vùng 12–15 s quan sát được.
-
-**Đặt SLO và tính goodput:** lấy SLO là P95 ≤ 5 s (mức chấp nhận được cho chat câu ngắn).
-Ở 10 user, P95 = 3.1 s → **giữ được ~100% goodput ở 3.69 RPS**. Ở 50 user, P95 = 15 s →
-**goodput = 0**: throughput danh nghĩa vẫn 3.43 RPS nhưng không request nào đạt SLO. Đây là
-minh hoạ sạch cho luận điểm của deck §8: sau điểm bão hoà, throughput mua thêm được bằng
-cách tiêu latency — và ở đây thậm chí còn tệ hơn, vì throughput *giảm* trong khi latency
-tăng gần 5×.
-
-**Knob tôi sẽ đổi trước tiên: `--parallel` từ 4 lên 8–12, kèm nâng `--ctx-size`.**
-Lý do chọn knob này chứ không phải knob khác:
-
-- Nút thắt đã được định danh là **số slot**, không phải tốc độ tính toán. `busy_slots`
-  3.97/4 nói engine không lãng phí gì; `deferred = 45` nói cái thiếu là chỗ ngồi. Knob đúng
-  phải là knob nới cái đang thiếu.
-- Tôi *không* chọn tăng thread (`-t`): sweep ở `01-tuning-tg128-ngl99.md` cho thấy `-t`
-  hoàn toàn vô tác dụng khi đã offload GPU.
-- Tôi *không* chọn hạ quantization xuống Q2: nó chỉ cho 1.17× decode (và đổi lại lỗi nội
-  dung — xem `01-quickstart-results.md`), trong khi khoảng cách cần bù là 10×.
-- Giới hạn thực tế: `--ctx-size 2048` hiện chia cho 4 slot = 512 token/slot. Nâng
-  `--parallel` mà không nâng ctx sẽ bóp ngân sách mỗi slot và làm hỏng request RAG dài. Với
-  5 GB VRAM trống và KV cache của Gemma 4 E2B rất rẻ (đo ở `bonus-c2-kv-cache-quant.md`:
-  chỉ ~60 MiB chênh lệch giữa f16 và q8_0 ở ctx 16384), tôi có thừa chỗ để nâng cả hai.
-- Kỳ vọng thành thật: nâng slot **không** làm RPS tăng 10×. GPU vẫn là trần cứng. Nó sẽ
-  cải thiện goodput ở mức concurrency trung bình và làm P95 xuống, cho tới khi trần mới trở
-  thành băng thông GPU. Sau đó knob tiếp theo mới là giảm `max_tokens` hoặc thêm máy.
+Knob tôi đổi trước là --parallel, từ 4 lên 8-12, kèm nâng --ctx-size. Nút thắt đã được định
+danh là số slot chứ không phải tốc độ tính, nên phải nới đúng cái đang thiếu. Tôi không tăng
+-t vì sweep ngl=99 cho thấy nó vô tác dụng khi đã offload GPU, và không hạ xuống Q2 vì nó
+chỉ được 1.17 lần trong khi khoảng cách cần bù là 10 lần. Phải nâng ctx cùng lúc vì 2048
+chia cho 4 slot đã chỉ còn 512 token mỗi slot, thêm slot mà giữ nguyên ctx thì bóp chết
+request RAG dài. Chỗ này tôi còn dư VRAM nên nâng cả hai được. Cũng phải nói thật là việc
+này không cho 10 lần đâu, GPU vẫn là trần cứng; nó chỉ hạ P95 ở vùng concurrency trung bình
+cho tới khi trần mới là băng thông GPU.

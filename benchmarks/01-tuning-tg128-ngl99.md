@@ -22,28 +22,14 @@ LAB_N_THREADS=20 make bench
 ```
 
 ## Your explanation
+Đây là lần chạy đầu, để nguyên mặc định của lab. Probe xác nhận runtime CUDA thấy được RTX
+4050 nên labkit tự đặt ngl=99.
 
-_Where is the knee, and why there? If the peak sits at your physical core count
-and drops above it, say what the extra threads are competing for. If your curve
-does something else -- flat, or still climbing at 2x logical cores -- say that
-instead and reason about why. A result that contradicts the expected shape is
-worth more than one that matches it, as long as you explain it._
+Đường cong phẳng: 76.7 / 76.8 / 76.8 / 77.1 / 76.7 tok/s. Chênh giữa -t 1 và -t 20 là 0.5%,
+tức nằm trong nhiễu. Khi cả 35 layer đã nằm trên GPU thì -t không còn tác dụng gì, vì nó
+chỉ điều khiển threadpool của backend CPU, mà lúc đó CPU chỉ còn sampling token với đẩy byte
+qua HTTP. Một thread làm cũng xong.
 
-**Giải thích của tôi (Nguyễn Phú Cường):**
-
-Đây là lần chạy đầu tiên, với `ngl=99` — tức cấu hình mặc định của lab trên máy này, vì
-`labkit.n_gpu_layers()` xác nhận runtime CUDA thấy được RTX 4050 nên tự đặt ngl=99.
-
-**Đường cong phẳng: 76.7 / 76.8 / 76.8 / 77.1 / 76.7 tok/s.** Chênh lệch giữa `-t 1` và
-`-t 20` là 0.5%, nằm trong nhiễu đo. Nói cách khác, khi toàn bộ 35 layer đã nằm trên
-GPU, `-t` — knob quan trọng nhất của track này — **không còn tác dụng gì**.
-
-Lý do: `-t` chỉ điều khiển threadpool của backend CPU. Khi offload trọn vẹn, mọi phép
-nhân ma trận của decode chạy bằng CUDA kernel; CPU chỉ còn việc sampling token và đẩy
-byte qua HTTP. Một thread thừa sức làm phần đó, nên thread thứ 2 đến thứ 40 không có
-việc.
-
-Đây là điều đáng ghi lại chứ không phải một lần chạy hỏng: **một knob chỉ có giá trị
-khi nó chạm vào đúng bottleneck đang hoạt động.** So cùng `01-tuning-tg128.md` (cùng
-model, cùng grid, chỉ khác `ngl=0`) thì `-t` đáng giá 2.32× — cùng một knob, cùng một
-máy, và giá trị của nó do bottleneck quyết định chứ không phải do bản thân knob.
+Tôi giữ file này lại chứ không coi là lần chạy hỏng. So với 01-tuning-tg128.md (cùng model,
+cùng grid, chỉ khác ngl=0) thì đúng knob đó đáng 2.32 lần. Cùng một máy, cùng một knob, giá
+trị của nó do bottleneck đang hoạt động quyết định.
