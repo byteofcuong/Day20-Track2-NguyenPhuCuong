@@ -297,8 +297,8 @@ embedder "thật" bỏ lỡ, và không dính false hit mà embedder "thật" m�
       đã được thay bằng nhận xét của tôi
 - [x] 5 screenshots trong `submission/screenshots/`
 - [x] `make verify` → **exit 0**
-- [ ] Repo GitHub ở chế độ **public**
-- [ ] Đã paste public URL vào VinUni LMS
+- [x] Repo GitHub ở chế độ **public**
+- [x] Đã paste public URL vào VinUni LMS
 - [x] **Không** commit `models/*.gguf` hay `runtime/` (đã có trong `.gitignore`)
 
 **Quan trọng:** repo phải **public** đến khi điểm được công bố. Private → grader không
