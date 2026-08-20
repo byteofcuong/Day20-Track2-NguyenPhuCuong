@@ -66,6 +66,12 @@ def main() -> int:
         print(f"  endpoints: http://localhost:{port}/v1/embeddings")
     print(f"\n  {' '.join(cmd)}\n")
 
+    # Windows has no real exec: os.execv re-quotes argv through the CRT, which splits
+    # any argument containing a space. A repo under "D:\Direc of code\..." therefore
+    # dies with `error: invalid argument: of`. Run the server as a child there instead
+    # -- Ctrl-C still reaches it, because it shares this console's process group.
+    if sys.platform == "win32":
+        return subprocess.run(cmd, check=False).returncode
     try:
         os.execv(cmd[0], cmd)          # hand the terminal over; Ctrl-C stops the server
     except OSError:

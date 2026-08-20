@@ -1,0 +1,216 @@
+[
+  {
+    "kv": "f16",
+    "ctx": 2048,
+    "started": true,
+    "gpu_delta_mib": 1662.0,
+    "gpu_total_mib": 2855.0,
+    "host_rss_mib": 1974.3,
+    "ttft_p50": 203.6,
+    "ttft_p95": 230.0,
+    "tpot_p50": 13.83,
+    "decode_tok_s": 72.3,
+    "eval_passed": 9,
+    "eval_total": 10,
+    "eval_detail": [
+      {
+        "kind": "arith",
+        "expected": "47",
+        "got": "47",
+        "ok": true
+      },
+      {
+        "kind": "arith",
+        "expected": "63",
+        "got": "63",
+        "ok": true
+      },
+      {
+        "kind": "arith",
+        "expected": "63",
+        "got": "63",
+        "ok": true
+      },
+      {
+        "kind": "arith",
+        "expected": "48",
+        "got": "48",
+        "ok": true
+      },
+      {
+        "kind": "arith",
+        "expected": "12",
+        "got": "12",
+        "ok": true
+      },
+      {
+        "kind": "json",
+        "expected": {
+          "name": "mai",
+          "age": 27
+        },
+        "got": "```json\n{\n  \"name\": \"Mai\",\n  \"age\": 27\n}\n```",
+        "ok": true
+      },
+      {
+        "kind": "json",
+        "expected": {
+          "name": "hoang",
+          "age": 41
+        },
+        "got": "```json\n{\n  \"name\": \"Hoang\",\n  \"age\": 41\n}\n```",
+        "ok": true
+      },
+      {
+        "kind": "json",
+        "expected": {
+          "city": "hanoi",
+          "country": "vietnam"
+        },
+        "got": "```json\n{\n  \"city\": \"Hanoi\",\n  \"country\": \"Vietnam\"\n}\n```",
+        "ok": true
+      },
+      {
+        "kind": "json",
+        "expected": {
+          "product": "mouse",
+          "price": 25
+        },
+        "got": "```json\n{\n  \"product\": \"mouse\",\n  \"price\": \"25 dollars\"\n}\n```",
+        "ok": false
+      },
+      {
+        "kind": "json",
+        "expected": {
+          "language": "python",
+          "year": 1991
+        },
+        "got": "```json\n{\n  \"language\": \"Python\",\n  \"year\": \"1991\"\n}\n```",
+        "ok": true
+      }
+    ]
+  },
+  {
+    "kv": "q8_0",
+    "ctx": 2048,
+    "started": true,
+    "gpu_delta_mib": 1713.0,
+    "gpu_total_mib": 2826.0,
+    "host_rss_mib": 1973.9,
+    "ttft_p50": 205.3,
+    "ttft_p95": 208.4,
+    "tpot_p50": 14.89,
+    "decode_tok_s": 67.2,
+    "eval_passed": 9,
+    "eval_total": 10,
+    "eval_detail": [
+      {
+        "kind": "arith",
+        "expected": "47",
+        "got": "47",
+        "ok": true
+      },
+      {
+        "kind": "arith",
+        "expected": "63",
+        "got": "63",
+        "ok": true
+      },
+      {
+        "kind": "arith",
+        "expected": "63",
+        "got": "63",
+        "ok": true
+      },
+      {
+        "kind": "arith",
+        "expected": "48",
+        "got": "48",
+        "ok": true
+      },
+      {
+        "kind": "arith",
+        "expected": "12",
+        "got": "12",
+        "ok": true
+      },
+      {
+        "kind": "json",
+        "expected": {
+          "name": "mai",
+          "age": 27
+        },
+        "got": "```json\n{\n  \"name\": \"Mai\",\n  \"age\": 27\n}\n```",
+        "ok": true
+      },
+      {
+        "kind": "json",
+        "expected": {
+          "name": "hoang",
+          "age": 41
+        },
+        "got": "```json\n{\n  \"name\": \"Hoang\",\n  \"age\": 41\n}\n```",
+        "ok": true
+      },
+      {
+        "kind": "json",
+        "expected": {
+          "city": "hanoi",
+          "country": "vietnam"
+        },
+        "got": "```json\n{\n  \"city\": \"Hanoi\",\n  \"country\": \"Vietnam\"\n}\n```",
+        "ok": true
+      },
+      {
+        "kind": "json",
+        "expected": {
+          "product": "mouse",
+          "price": 25
+        },
+        "got": "```json\n{\n  \"product\": \"mouse\",\n  \"price\": \"25 dollars\"\n}\n```",
+        "ok": false
+      },
+      {
+        "kind": "json",
+        "expected": {
+          "language": "python",
+          "year": 1991
+        },
+        "got": "```json\n{\n  \"language\": \"Python\",\n  \"year\": \"1991\"\n}\n```",
+        "ok": true
+      }
+    ]
+  },
+  {
+    "kv": "f16",
+    "ctx": 8192,
+    "started": true,
+    "gpu_delta_mib": 1766.0,
+    "gpu_total_mib": 2914.0,
+    "host_rss_mib": 1976.7
+  },
+  {
+    "kv": "q8_0",
+    "ctx": 8192,
+    "started": true,
+    "gpu_delta_mib": 1733.0,
+    "gpu_total_mib": 2865.0,
+    "host_rss_mib": 1976.3
+  },
+  {
+    "kv": "f16",
+    "ctx": 16384,
+    "started": true,
+    "gpu_delta_mib": 1831.0,
+    "gpu_total_mib": 2950.0,
+    "host_rss_mib": 1978.8
+  },
+  {
+    "kv": "q8_0",
+    "ctx": 16384,
+    "started": true,
+    "gpu_delta_mib": 1779.0,
+    "gpu_total_mib": 2890.0,
+    "host_rss_mib": 1978.5
+  }
+]
