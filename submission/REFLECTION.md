@@ -59,8 +59,8 @@ tôi. Ngoài ra probe báo `GPU offload : ACTIVE` (asset CUDA + cudart) nên `ng
 
 | Quantization | Size (GB) | Load (ms) | TTFT P50/P95 (ms) | TPOT P50/P95 (ms) | E2E P50/P95/P99 (ms) | Decode (tok/s) |
 |---|--:|--:|--:|--:|--:|--:|
-| UD-Q4_K_XL | 2.97 | 4080 | 215 / 453 | 14.1 / 15.8 | 1091 / 1404 / 1404 | 70.8 |
-| UD-Q2_K_XL | 2.24 | 4775 | 210 / 349 | 12.0 / 13.8 | 971 / 1116 / 1116 | 83.0 |
+| UD-Q4_K_XL | 2.97 | 4888 | 201 / 384 | 11.8 / 12.4 | 946 / 1120 / 1120 | 84.9 |
+| UD-Q2_K_XL | 2.24 | 4115 | 188 / 370 | 10.1 / 10.6 | 819 / 999 / 999 | 99.0 |
 
 *(Cấu hình: `threads=14`, `ngl=99`, `ctx=2048`, `max_tokens=64`, 10/10 request thành công
 mỗi quant, warm-up đã bỏ. TTFT đo phía client; TPOT tính từ `predicted_n` do server báo,
@@ -70,8 +70,8 @@ nên hai cột này là hai đại lượng tách biệt chứ không phải end
 hỏi cùng một câu trên cả hai (`make serve` vs `.venv/bin/python labs/02-serve/serve.py --compare`)
 chưa? Chất lượng khác nhau thế nào?
 
-Q2 nhanh hơn **1.17×** khi decode (TPOT 12.0 vs 14.1 ms) và nhỏ hơn 0.73 GB, nhưng TTFT
-gần như y hệt (210 vs 215 ms) — prefill bị chặn bởi compute, không phải số byte weight.
+Q2 nhanh hơn **1.17×** khi decode (TPOT 10.1 vs 11.8 ms) và nhỏ hơn 0.73 GB, nhưng TTFT
+gần như y hệt (188 vs 201 ms) — prefill bị chặn bởi compute, không phải số byte weight.
 Tôi đã hỏi cùng 5 câu ở `temperature=0` trên cả hai. Hoà ở câu dễ chấm (cả hai:
 `17*24=408`, JSON đúng). Nhưng Q2 nói PagedAttention cấp phát bộ nhớ **"contiguous"** —
 ngược hẳn ý tưởng cốt lõi — và bịa "GGUF (GPT-GPU)". **Không đáng:** 2.97 GB vẫn vừa 6 GB
@@ -85,12 +85,12 @@ VRAM, tôi không cần tiết kiệm 0.73 GB để đổi lấy câu trả lờ
 
 | Users | RPS | P50 (ms) | P95 (ms) | P99 (ms) | Eff. concurrency | Failures |
 |--:|--:|--:|--:|--:|--:|--:|
-| 10 | 2.89 | 2400 | 3900 | 4500 | 7.3 | 0 (0.0%) |
-| 50 | 2.95 | 15000 | 17000 | 17000 | 40.9 | 0 (0.0%) |
+| 10 | 3.69 | 1800 | 3100 | 3800 | 6.8 | 0 (0.0%) |
+| 50 | 3.43 | 13000 | 15000 | 16000 | 41.5 | 0 (0.0%) |
 
-- **Offered load tăng 5×, throughput thực tăng:** _1.02×_
-- **P95 tăng:** _4.36×_
-- **Effective concurrency ở 50 users:** _40.9_ so với `--parallel` = _4_ slots
+- **Offered load tăng 5×, throughput thực tăng:** _0.93×_ (tức **giảm** 7%)
+- **P95 tăng:** _4.84×_
+- **Effective concurrency ở 50 users:** _41.5_ so với `--parallel` = _4_ slots
 
 **Peak `llamacpp:n_busy_slots_per_decode`** (từ `make metrics` khi `make load-50` đang
 chạy): _3.97_ / _4_ slots  *(kèm `requests_deferred` đỉnh **45**, `requests_processing` chạm trần 4 ở mọi mẫu)*
@@ -100,18 +100,20 @@ thuyết phục bạn? Nếu P95 tăng nhanh hơn RPS thì phần latency thêm 
 compute time — bạn biết bằng cách nào? Nếu bạn phải nâng goodput@SLO, bạn sẽ đổi knob
 nào **trước**, và vì sao knob đó?
 
-**Bão hoà từ dưới 10 user.** Con số quyết định là RPS: 2.89 → 2.95 khi offered load tăng
-5×. Đó là **queue time, không phải compute time**, và tôi biết nhờ ba dấu hiệu độc lập:
-(1) RPS đứng yên trong khi P95 tăng 4.36× — nếu mỗi request tốn nhiều compute hơn thì RPS
-đã phải *giảm*; (2) server tự khai `requests_deferred` đỉnh **45**, tức 45 request đang
-nằm chờ slot; (3) `busy_slots` 3.97/4 nói engine không hề rảnh — nó chạy hết công suất,
-chỉ là không có chỗ cho người mới.
+**Bão hoà từ dưới 10 user.** Con số quyết định là RPS: 3.69 → **3.43** khi offered load
+tăng 5× — throughput không chỉ đứng yên mà **đi lùi 7%**. Đó là **queue time, không phải
+compute time**, và tôi biết nhờ ba dấu hiệu độc lập: (1) RPS giảm trong khi P95 tăng
+4.84× — nếu mỗi request tốn nhiều compute hơn thì chi phí đó phải hiện ra ở thời gian
+decode, mà TPOT thì không đổi; (2) server tự khai `requests_deferred` đỉnh **45**, tức 45
+request đang nằm chờ slot; (3) `busy_slots` 3.97/4 nói engine không hề rảnh — nó chạy hết
+công suất, chỉ là không có chỗ cho người mới.
 
 Ghép lại: 45 chờ + 4 chạy ≈ 49 ≈ đúng 50 user locust mô phỏng, và khớp effective
-concurrency 40.9. Occupancy/slot = 10.24, tức mỗi slot có ~10 request xếp hàng.
+concurrency 41.5. Occupancy/slot = 10.36, tức mỗi slot có ~10 request xếp hàng. Phần RPS
+mất đi chính là chi phí quản lý hàng đợi đó — thêm tải chỉ mua thêm việc phải xếp lịch.
 
-**Goodput ở SLO P95 ≤ 5 s:** 10 user → P95 3.9 s → giữ ~100% goodput ở 2.89 RPS. 50 user →
-P95 17 s → **goodput = 0**, dù throughput danh nghĩa vẫn 2.95 RPS. Sau điểm bão hoà,
+**Goodput ở SLO P95 ≤ 5 s:** 10 user → P95 3.1 s → giữ ~100% goodput ở 3.69 RPS. 50 user →
+P95 15 s → **goodput = 0**, dù throughput danh nghĩa vẫn 3.43 RPS. Sau điểm bão hoà,
 throughput không tăng mà goodput *sụp*.
 
 **Knob tôi đổi trước: `--parallel` 4 → 8–12, kèm nâng `--ctx-size`.** Nút thắt đã được
