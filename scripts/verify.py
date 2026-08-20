@@ -71,7 +71,10 @@ def is_committed(path: pathlib.Path) -> bool | None:
     if TRACKED is None:
         return None
     try:
-        rel = str(path.resolve().relative_to(labkit.repo_root()))
+        # as_posix(), not str(): `git ls-files` always prints forward slashes, while
+        # relative_to() yields backslashes on Windows. Comparing the two raw makes every
+        # committed file look missing, so verify could never exit 0 there.
+        rel = path.resolve().relative_to(labkit.repo_root()).as_posix()
     except ValueError:
         return None
     return rel in TRACKED

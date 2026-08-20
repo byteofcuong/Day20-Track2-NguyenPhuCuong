@@ -39,11 +39,13 @@ Không dùng Colab/Kaggle.
 **Setup story** (≤ 80 chữ): điều gì cần thay đổi để lab chạy trên máy bạn? Có bước
 nào fail rồi phải workaround không?
 
-Ba việc. (1) Windows không có `make` → dùng `.\lab.ps1` + `bootstrap.ps1`. (2) `make serve`
-crash với `error: invalid argument: of` — `os.execv` trên Windows tách đường dẫn có dấu
-cách (`D:\Direc of code\...`); tôi sửa `labs/02-serve/serve.py` để dùng `subprocess.run`
-trên win32. (3) Probe báo `GPU offload : ACTIVE` (asset CUDA + cudart), nên `ngl=99` là mặc
-định — điều này định hình lại toàn bộ §5.
+Bốn việc. (1) Windows không có `make` → dùng `.\lab.ps1` + `bootstrap.ps1`.
+(2) `make serve` crash `error: invalid argument: of` — `os.execv` trên Windows tách argv ở
+dấu cách (`D:\Direc of code\...`); sửa `labs/02-serve/serve.py` dùng `subprocess.run` trên
+win32. (3) `make verify` báo mọi file "NOT committed" dù đã commit — `verify.py` so path
+`\` với `git ls-files` dùng `/`; sửa bằng `as_posix()`. (4) Probe báo
+`GPU offload : ACTIVE` (asset CUDA + cudart) nên `ngl=99` là mặc định — điều này định hình
+lại toàn bộ §5.
 
 ---
 
